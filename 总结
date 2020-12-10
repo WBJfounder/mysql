@@ -1,0 +1,69 @@
+1.卸载系统自带的Mariadb
+[root@centos7 src]# rpm -qa|grep mariadb
+mariadb-libs-5.5.60-1.el7_5.x86_64
+[root@centos7 src]# rpm -e --nodeps  mariadb-libs-5.5.44-2.el7.centos.x86_64
+
+2.删除/etc下my.cnf配置文件（如果存在的话）、检查mysql是否存在
+[root@centos7 src]# rm -rf /etc/my.cnf
+[root@centos7 src]# rpm -qa | grep mysql
+
+3.检查mysql用户组、用户是否存在
+[root@centos7 src]# cat /etc/group | grep mysql 
+[root@centos7 src]# cat /etc/passwd | grep mysql
+
+
+4.解压mysql-5.7.25-el7-x86_64.tar.gz，移动到/usr/local/mysql下，更改文件归属为mysql
+[root@centos7 src]# cd /usr/local/src 
+[root@centos7 src]# tar -zxvf mysql-5.7.25-el7-x86_64.tar.gz  
+[root@centos7 src]# cd /usr/local/
+[root@centos7 src]# mkdir mysql
+[root@centos7 src]# mv /usr/local/src/mysql-5.7.20-linux-glibc2.12-x86_64/* /usr/local/mysql/
+
+5.添加系统mysql组和mysql用户
+添加系统mysql组     groupadd mysql
+添加mysql用户 useradd -r -g mysql mysql （添加完成后可用id mysql查看）
+
+6.安装数据库
+切到mysql目录 cd /usr/local/mysql
+修改当前目录拥有者为mysql用户 chown -R mysql:mysql ./
+安装数据库 bin/mysqld --initialize --user=mysql --basedir=/usr/local/mysql --datadir=/usr/local/mysql/data
+生成了临时密码
+执行以下命令创建RSA private key 
+bin/mysql_ssl_rsa_setup --datadir=/usr/local/mysql/data
+修改当前目录拥有者为mysql用户 chown -R mysql:mysql ./
+修改当前data目录拥有者为mysql用户 chown -R mysql:mysql data
+
+7.配置my.cnf 
+vi /etc/my.cnf
+[mysqld]
+character_set_server=utf8
+init_connect='SET NAMES utf8'
+basedir=/usr/local/mysql
+datadir=/usr/local/mysql/data
+socket=/tmp/mysql.sock
+max_allowed_packet = 1024M
+#不区分大小写
+lower_case_table_names = 1
+#不开启sql严格模式
+sql_mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+log-error=/var/log/mysqld.log
+pid-file=/usr/local/mysql/data/mysqld.pid
+bulk_insert_buffer_size = 64M
+innodb_log_buffer_size=64M
+innodb_buffer_pool_size=20480M
+skip-name-resolve
+
+添加开机启动     cp /usr/local/mysql/support-files/mysql.server  /etc/init.d/mysqld
+修改   vim /etc/init.d/mysqld   
+ basedir=/usr/local/mysql
+ datadir=/usr/local/mysql/data
+
+8.启动mysql   service mysqld start 
+加入开机起动    chkconfig --add mysqld
+
+9.软连接 ln -s  /usr/local/mysql/bin/mysql  /usr/bin
+
+10.登录修改密码 mysql -uroot -p 上面初始化时的密码
+alter user 'root'@'localhost' identified by 'root';   
+flush privileges;    #刷新权限
+GRANT ALL PRIVILEGES ON *.* TO 'root1'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;   #授权新用户
